@@ -46,6 +46,7 @@
         .dir-btn { font-size: 10px !important; padding: 3px 6px !important; }
         .directional-marker { visibility: hidden; }
         .dir-btn.active-dir { background: #4363d8 !important; color: white !important; border-color: #4363d8 !important; }
+        .leaflet-top.leaflet-right { display: flex; flex-direction: row; align-items: flex-start; gap: 6px; }
     </style>
 </head>
 <body>
@@ -2161,6 +2162,36 @@ L.control.layers({
     'Detailed (OSM)': osmDefault
 }, null, {position: 'topright'}).addTo(map);
 
+// Trip action buttons (top right)
+var TripHideButton = L.Control.extend({
+    options: {position: 'topright'},
+    onAdd: function(map) {
+        var container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+        container.innerHTML = '<a id="trip-hide-btn" href="#" title="Hide trip route" style="display:flex;align-items:center;justify-content:center;width:45px;height:45px;opacity:0.35;pointer-events:none;">' +
+            '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+            '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>' +
+            '</svg></a>';
+        L.DomEvent.disableClickPropagation(container);
+        return container;
+    }
+});
+new TripHideButton().addTo(map);
+
+var TripTrashButton = L.Control.extend({
+    options: {position: 'topright'},
+    onAdd: function(map) {
+        var container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+        container.innerHTML = '<a id="trip-trash-btn" href="#" title="Delete trip route" style="display:flex;align-items:center;justify-content:center;width:45px;height:45px;opacity:0.35;pointer-events:none;">' +
+            '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+            '<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>' +
+            '<path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>' +
+            '</svg></a>';
+        L.DomEvent.disableClickPropagation(container);
+        return container;
+    }
+});
+new TripTrashButton().addTo(map);
+
 // Trip Planner control (top right)
 var TripControl = L.Control.extend({
     options: {position: 'topright'},
@@ -3106,6 +3137,8 @@ async function planTrip() {
         resultDiv.innerHTML = html;
         document.getElementById('trip-clear-wrap').style.display = '';
         tripActive = true;
+        tripHidden = false;
+        updateTripButtons();
 
         hideAll();
 
@@ -3192,8 +3225,47 @@ function clearTrip() {
     document.getElementById('trip-result').innerHTML = '';
     document.getElementById('trip-address').value = '';
     document.getElementById('trip-clear-wrap').style.display = 'none';
+    updateTripButtons();
     showAll();
 }
+
+var tripHidden = false;
+
+function updateTripButtons() {
+    var hideBtn = document.getElementById('trip-hide-btn');
+    var trashBtn = document.getElementById('trip-trash-btn');
+    if (tripActive) {
+        hideBtn.style.opacity = '1';
+        hideBtn.style.pointerEvents = 'auto';
+        trashBtn.style.opacity = '1';
+        trashBtn.style.pointerEvents = 'auto';
+    } else {
+        hideBtn.style.opacity = '0.35';
+        hideBtn.style.pointerEvents = 'none';
+        trashBtn.style.opacity = '0.35';
+        trashBtn.style.pointerEvents = 'none';
+    }
+}
+
+function toggleTripVisibility() {
+    if (!tripActive) return;
+    tripHidden = !tripHidden;
+    var hideBtn = document.getElementById('trip-hide-btn');
+    if (tripHidden) {
+        if (tripPath) map.removeLayer(tripPath);
+        hideBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+            '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>' +
+            '<path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>' +
+            '<line x1="1" y1="1" x2="23" y2="23"/></svg>';
+    } else {
+        if (tripPath) tripPath.addTo(map);
+        hideBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+            '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+    }
+}
+
+document.getElementById('trip-hide-btn').addEventListener('click', function(e) { e.preventDefault(); toggleTripVisibility(); });
+document.getElementById('trip-trash-btn').addEventListener('click', function(e) { e.preventDefault(); clearTrip(); });
 
 // --- Live Bus Tracking ---
 var busMarkersLayer = L.layerGroup().addTo(map);
